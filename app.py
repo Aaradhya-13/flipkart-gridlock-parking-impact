@@ -61,13 +61,12 @@ if 'lat' not in st.session_state:
     st.session_state.lng = 77.5946
     st.session_state.name = "Bengaluru Core Center"
 
-# EXACT TITLE CHANGED HERE AS REQUESTED
+# Premium Enterprise Header
 st.markdown("### 🔍 Hyper-Local Spatial Search Protocol")
 search_query = st.text_input("Search any city, neighborhood, or local street plaza (e.g., Chikkapete, Jayanagar, Kanchipuram):", "")
 
 # Live Public API Processing Core (Render/Vercel Compatible)
 if search_query:
-    # Append localized parameters to fine-tune searches safely
     target_query = f"{search_query}, India"
     photon_url = f"https://photon.komoot.io/api/?q={target_query}&limit=1"
     
@@ -81,7 +80,6 @@ if search_query:
             parsed_lat = float(geometry[1])
             parsed_name = properties.get("name", search_query)
             
-            # Prevent endless refresh loops
             if round(parsed_lat, 4) != round(st.session_state.lat, 4):
                 st.session_state.lat = parsed_lat
                 st.session_state.lng = parsed_lng
@@ -99,7 +97,6 @@ with col_map:
     folium.Marker([st.session_state.lat, st.session_state.lng], popup=st.session_state.name, icon=folium.Icon(color="red", icon="flag")).add_to(m)
     map_data = st_folium(m, width=760, height=500, key=f"dynamic_render_{st.session_state.lat}_{st.session_state.lng}")
 
-    # Manual Mouse Pointer Override Support
     if map_data and map_data.get("last_clicked"):
         c_lat, c_lng = map_data["last_clicked"]["lat"], map_data["last_clicked"]["lng"]
         if round(c_lat, 4) != round(st.session_state.lat, 4):
@@ -117,14 +114,12 @@ with col_metrics:
     is_peak = 1 if hour in [8, 9, 10, 17, 18, 19] else 0
     is_night = 1 if hour in [0, 1, 2, 3, 4, 5, 22, 23] else 0
     
-    # Fully Dynamic Math Vector Grid
     base_geo = round(float((abs(lat_p * 18.29) + abs(lng_p * 14.56)) % 5.5), 2)
     temporal = 4.2 if is_peak else (-3.2 if is_night else 0.5)
     if day_of_week in [5, 6]: temporal -= 0.6
     
     pred_val = round(max(0.1, float(base_geo + temporal)), 2)
 
-    # Clean 3-State Logic Mapping
     if pred_val >= 6.5:
         status, alert, rec = "🔴 CRITICAL RISK", st.error, "🚫 **CRITICAL LOCKOUT:** Heavy bottlenecks. Reroute dispatch allocation priority."
     elif 3.0 <= pred_val < 6.5:
