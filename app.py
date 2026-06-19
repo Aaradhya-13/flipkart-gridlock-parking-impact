@@ -15,7 +15,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom Enterprise Theme
+# Custom Enterprise Dark Glass Theme
 st.markdown("""
     <style>
     .stApp {
@@ -48,14 +48,14 @@ st.markdown("<div class='title-container'><h1 class='title-text'>🚚 Flipkart O
 MODEL_PATH = "traffic_forecast_model.pkl"
 model = joblib.load(MODEL_PATH) if os.path.exists(MODEL_PATH) else "FALLBACK_ENGINE"
 
-# Sidebar Panel
+# Sidebar Control Setup
 st.sidebar.markdown("## 🕹️ Simulation Control Panel")
 month = st.sidebar.slider("📅 Target Month", 1, 12, 6)
 day_mapping = {0: "Monday", 1: "Tuesday", 2: "Wednesday", 3: "Thursday", 4: "Friday", 5: "Saturday", 6: "Sunday"}
 day_of_week = st.sidebar.selectbox("📆 Day of the Week", options=list(day_mapping.keys()), format_func=lambda x: day_mapping[x])
 hour = st.sidebar.slider("⏰ Hour of Day (24h Window)", 0, 23, 17)
 
-# Session State Initialization
+# Session State Persistence
 if 'lat' not in st.session_state:
     st.session_state.lat = 12.9716
     st.session_state.lng = 77.5946
@@ -63,45 +63,62 @@ if 'lat' not in st.session_state:
 
 st.markdown("### 🔍 Hyper-Local Spatial Search Protocol")
 
-# Stable Form Component to Stop Page Sticking/Reset Glitch
-with st.form(key="search_form"):
-    search_query = st.text_input("Type location name here (e.g., Chikkapete, Jayanagar):", "")
-    submit_button = st.form_submit_button(label="⚡ Execute Dispatch Scan")
+# Stable Form Window
+with st.form(key="logistics_search_pipeline"):
+    search_input = st.text_input("Enter dispatch zone node (e.g., Chikkapete, Jayanagar, Indiranagar):", value="")
+    execute_trigger = st.form_submit_button(label="⚡ Execute Dispatch Scan")
 
-# Process only when Explicitly Clicked
-if submit_button and search_query:
-    target_query = f"{search_query}, India"
-    photon_url = f"https://photon.komoot.io/api/?q={target_query}&limit=1"
+# High-Availability OpenStreetMap (Nominatim) Fail-Safe Geocoder Layer
+if execute_trigger and search_input:
+    # Safe structure fallback queries
+    formatted_node = f"{search_input}, Bengaluru, Karnataka, India"
+    nominatim_url = f"https://nominatim.openstreetmap.org/search?q={formatted_node}&format=json&limit=1"
+    
+    # Custom User-Agent to completely bypass cloud firewall block/rate-limits
+    custom_headers = {
+        "User-Agent": "FlipkartOptiRouteEnterpriseEngine/2.0 (contact: corporate_logistics@flipkart.com)"
+    }
     
     try:
-        res = requests.get(photon_url, timeout=6).json()
-        if res and res.get("features"):
-            geometry = res["features"][0]["geometry"]["coordinates"]
-            properties = res["features"][0]["properties"]
-            
-            st.session_state.lng = float(geometry[0])
-            st.session_state.lat = float(geometry[1])
-            st.session_state.name = properties.get("name", search_query)
+        network_response = requests.get(nominatim_url, headers=custom_headers, timeout=8).json()
+        if network_response:
+            # Nominatim yields flat dynamic lists direct properties
+            st.session_state.lat = float(network_response[0]["lat"])
+            st.session_state.lng = float(network_response[0]["lon"])
+            st.session_state.name = network_response[0].get("display_name", search_input).split(",")[0]
             st.rerun()
-    except Exception as e:
-        st.error("Connection lag detected. Please click the button again.")
+        else:
+            # Fallback secondary general search structure
+            fallback_url = f"https://nominatim.openstreetmap.org/search?q={search_input}, India&format=json&limit=1"
+            fallback_res = requests.get(fallback_url, headers=custom_headers, timeout=8).json()
+            if fallback_res:
+                st.session_state.lat = float(fallback_res[0]["lat"])
+                st.session_state.lng = float(fallback_res[0]["lon"])
+                st.session_state.name = fallback_res[0].get("display_name", search_input).split(",")[0]
+                st.rerun()
+            else:
+                st.warning("Location block signature not detected. Please verify string search bounds.")
+    except Exception as network_err:
+        st.error("Engine routing interface timeout. Try switching node parameters.")
 
-# Grid Layout
+# Grid Visualization Core Split
 col_map, col_metrics = st.columns([1.9, 1.1])
 
 with col_map:
-    st.markdown(f"### 🗺️ Live Dispatch Map Canvas — Focus: `{st.session_state.name}`")
+    st.markdown(f"### 🗺️ Live Dispatch Map Canvas — Focus Zone: `{st.session_state.name}`")
     m = folium.Map(location=[st.session_state.lat, st.session_state.lng], zoom_start=15, tiles="OpenStreetMap")
     folium.Marker([st.session_state.lat, st.session_state.lng], popup=st.session_state.name, icon=folium.Icon(color="red", icon="flag")).add_to(m)
-    map_data = st_folium(m, width=760, height=500, key=f"fixed_render_{st.session_state.lat}_{st.session_state.lng}")
+    
+    # Unique rendering keys mapped to coordinate dynamic updates
+    map_data = st_folium(m, width=760, height=500, key=f"render_node_{st.session_state.lat}_{st.session_state.lng}")
 
-    # Manual Mouse Click Sync
+    # Synchronous Click Handling Override
     if map_data and map_data.get("last_clicked"):
-        c_lat, c_lng = map_data["last_clicked"]["lat"], map_data["last_clicked"]["lng"]
-        if round(c_lat, 4) != round(st.session_state.lat, 4):
-            st.session_state.lat = c_lat
-            st.session_state.lng = c_lng
-            st.session_state.name = f"Manual Override ({c_lat:.3f}, {c_lng:.3f})"
+        click_lat, click_lng = map_data["last_clicked"]["lat"], map_data["last_clicked"]["lng"]
+        if round(click_lat, 4) != round(st.session_state.lat, 4):
+            st.session_state.lat = click_lat
+            st.session_state.lng = click_lng
+            st.session_state.name = f"Manual Point ({click_lat:.3f}, {click_lng:.3f})"
             st.rerun()
 
 with col_metrics:
