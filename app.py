@@ -15,7 +15,7 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom Enterprise Theme (Stays dark glass style)
+# Custom Enterprise Theme
 st.markdown("""
     <style>
     .stApp {
@@ -55,18 +55,21 @@ day_mapping = {0: "Monday", 1: "Tuesday", 2: "Wednesday", 3: "Thursday", 4: "Fri
 day_of_week = st.sidebar.selectbox("📆 Day of the Week", options=list(day_mapping.keys()), format_func=lambda x: day_mapping[x])
 hour = st.sidebar.slider("⏰ Hour of Day (24h Window)", 0, 23, 17)
 
-# Session State Initialization for 100% Dynamic Allocation
+# Session State Initialization
 if 'lat' not in st.session_state:
     st.session_state.lat = 12.9716
     st.session_state.lng = 77.5946
     st.session_state.name = "Bengaluru Core Center"
 
-# Premium Enterprise Header
 st.markdown("### 🔍 Hyper-Local Spatial Search Protocol")
-search_query = st.text_input("Search any city, neighborhood, or local street plaza (e.g., Chikkapete, Jayanagar, Kanchipuram):", "")
 
-# Live Public API Processing Core (Render/Vercel Compatible)
-if search_query:
+# Stable Form Component to Stop Page Sticking/Reset Glitch
+with st.form(key="search_form"):
+    search_query = st.text_input("Type location name here (e.g., Chikkapete, Jayanagar):", "")
+    submit_button = st.form_submit_button(label="⚡ Execute Dispatch Scan")
+
+# Process only when Explicitly Clicked
+if submit_button and search_query:
     target_query = f"{search_query}, India"
     photon_url = f"https://photon.komoot.io/api/?q={target_query}&limit=1"
     
@@ -76,17 +79,12 @@ if search_query:
             geometry = res["features"][0]["geometry"]["coordinates"]
             properties = res["features"][0]["properties"]
             
-            parsed_lng = float(geometry[0])
-            parsed_lat = float(geometry[1])
-            parsed_name = properties.get("name", search_query)
-            
-            if round(parsed_lat, 4) != round(st.session_state.lat, 4):
-                st.session_state.lat = parsed_lat
-                st.session_state.lng = parsed_lng
-                st.session_state.name = parsed_name
-                st.rerun()
+            st.session_state.lng = float(geometry[0])
+            st.session_state.lat = float(geometry[1])
+            st.session_state.name = properties.get("name", search_query)
+            st.rerun()
     except Exception as e:
-        pass
+        st.error("Connection lag detected. Please click the button again.")
 
 # Grid Layout
 col_map, col_metrics = st.columns([1.9, 1.1])
@@ -95,13 +93,15 @@ with col_map:
     st.markdown(f"### 🗺️ Live Dispatch Map Canvas — Focus: `{st.session_state.name}`")
     m = folium.Map(location=[st.session_state.lat, st.session_state.lng], zoom_start=15, tiles="OpenStreetMap")
     folium.Marker([st.session_state.lat, st.session_state.lng], popup=st.session_state.name, icon=folium.Icon(color="red", icon="flag")).add_to(m)
-    map_data = st_folium(m, width=760, height=500, key=f"dynamic_render_{st.session_state.lat}_{st.session_state.lng}")
+    map_data = st_folium(m, width=760, height=500, key=f"fixed_render_{st.session_state.lat}_{st.session_state.lng}")
 
+    # Manual Mouse Click Sync
     if map_data and map_data.get("last_clicked"):
         c_lat, c_lng = map_data["last_clicked"]["lat"], map_data["last_clicked"]["lng"]
         if round(c_lat, 4) != round(st.session_state.lat, 4):
-            st.session_state.lat, st.session_state.lng = c_lat, c_lng
-            st.session_state.name = f"Point Selection ({c_lat:.3f}, {c_lng:.3f})"
+            st.session_state.lat = c_lat
+            st.session_state.lng = c_lng
+            st.session_state.name = f"Manual Override ({c_lat:.3f}, {c_lng:.3f})"
             st.rerun()
 
 with col_metrics:
